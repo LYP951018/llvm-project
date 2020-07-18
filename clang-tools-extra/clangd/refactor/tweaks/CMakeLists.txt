@@ -25,7 +25,7 @@ add_clang_library(clangDaemonTweaks OBJECT
   RawStringLiteral.cpp
   RemoveUsingNamespace.cpp
   SwapIfBranches.cpp
-
+  ExpandMocker.cpp
   LINK_LIBS
   clangAST
   clangBasic

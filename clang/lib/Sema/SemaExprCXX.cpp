@@ -4622,7 +4622,16 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
 
     return !S.RequireCompleteType(
         Loc, ArgTy, diag::err_incomplete_type_used_in_type_trait_expr);
+  case UTT_FMock:
+      if (ArgTy->isFunctionType())
+          return true;
+
+      //TODO: Fmock
+      return !S.RequireCompleteType(
+          Loc, ArgTy, diag::err_incomplete_type_used_in_type_trait_expr);
   }
+  
+
 }
 
 static bool HasNoThrowOperator(const RecordType *RT, OverloadedOperatorKind Op,
@@ -4667,6 +4676,8 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, TypeTrait UTT,
   ASTContext &C = Self.Context;
   switch(UTT) {
   default: llvm_unreachable("not a UTT");
+  case UTT_FMock:
+      return true;
     // Type trait expressions corresponding to the primary type category
     // predicates in C++0x [meta.unary.cat].
   case UTT_IsVoid:
