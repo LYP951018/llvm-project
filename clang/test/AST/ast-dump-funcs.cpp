@@ -14,11 +14,11 @@ struct R {
   ~R() {} // not trivial
   // CHECK: CXXDestructorDecl 0x{{[^ ]*}} <line:[[@LINE-1]]:3, col:9> col:3 used ~R 'void () noexcept'
   R(const R&) = delete;
-  // CHECK: CXXConstructorDecl 0x{{[^ ]*}} <line:[[@LINE-1]]:3, col:22> col:3 R 'void (const R &)' delete trivial
+  // CHECK: CXXConstructorDecl 0x{{[^ ]*}} <line:[[@LINE-1]]:3, col:22> col:3 R 'void (const R &)' delete
   R(R&&) = default;
   // CHECK: CXXConstructorDecl 0x{{[^ ]*}} <line:[[@LINE-1]]:3, col:18> col:3 constexpr R 'void (R &&)' default trivial noexcept-unevaluated
 
-  // CHECK: CXXMethodDecl 0x{{[^ ]*}} <line:[[@LINE-10]]:8> col:8 implicit operator= 'R &(const R &)' inline default_delete trivial noexcept-unevaluated
+  // CHECK: CXXMethodDecl 0x{{[^ ]*}} <line:[[@LINE-10]]:8> col:8 implicit operator= 'R &(const R &)' inline default_delete trivial ineligible noexcept-unevaluated
 };
 
 struct S {

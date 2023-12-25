@@ -18930,10 +18930,16 @@ static void SetEligibleMethods(Sema &S, CXXRecordDecl *Record,
     }
   }
 
+  const auto IsIneligibleDueToDeleted = [&](CXXMethodDecl* MD) {
+    return !CXXRecordDecl::areDeletedSMFStillEligible(S.Context) && MD->isDeleted();
+  };
+
   for (size_t i = 0; i < Methods.size(); i++) {
     if (!SatisfactionStatus[i])
       continue;
     CXXMethodDecl *Method = Methods[i];
+    if (IsIneligibleDueToDeleted(Method))
+      continue;
     CXXMethodDecl *OrigMethod = Method;
     if (FunctionDecl *MF = OrigMethod->getInstantiatedFromMemberFunction())
       OrigMethod = cast<CXXMethodDecl>(MF);
@@ -18941,7 +18947,7 @@ static void SetEligibleMethods(Sema &S, CXXRecordDecl *Record,
     const Expr *Constraints = OrigMethod->getTrailingRequiresClause();
     bool AnotherMethodIsMoreConstrained = false;
     for (size_t j = 0; j < Methods.size(); j++) {
-      if (i == j || !SatisfactionStatus[j])
+      if (i == j || !SatisfactionStatus[j] || Methods[j]->isDeleted())
         continue;
       CXXMethodDecl *OtherMethod = Methods[j];
       if (FunctionDecl *MF = OtherMethod->getInstantiatedFromMemberFunction())
@@ -18968,8 +18974,6 @@ static void SetEligibleMethods(Sema &S, CXXRecordDecl *Record,
       if (AnotherMethodIsMoreConstrained)
         break;
     }
-    // FIXME: Do not consider deleted methods as eligible after implementing
-    // DR1734 and DR1496.
     if (!AnotherMethodIsMoreConstrained) {
       Method->setIneligibleOrNotSelected(false);
       Record->addedEligibleSpecialMemberFunction(Method, 1 << CSM);
@@ -19334,8 +19338,17 @@ void Sema::ActOnFields(Scope *S, SourceLocation RecLoc, Decl *EnclosingDecl,
             Completed = true;
           }
         }
+        if (CXXRecord->needsImplicitDefaultConstructor()) {
+          ++getASTContext().NumImplicitDefaultConstructors;
+
+          if (CXXRecord->needsOverloadResolutionForDefaultConstructor() ||
+              CXXRecord->hasInheritedConstructor())
+            DeclareImplicitDefaultConstructor(CXXRecord);
+        }
+
         ComputeSelectedDestructor(*this, CXXRecord);
         ComputeSpecialMemberFunctionsEligiblity(*this, CXXRecord);
+        CXXRecord->updateDeletedImplicitTriviality();
       }
     }
 
@@ -19393,6 +19406,7 @@ void Sema::ActOnFields(Scope *S, SourceLocation RecLoc, Decl *EnclosingDecl,
           ShouldDeleteSpecialMember(Dtor, CXXDestructor)) {
         CXXRecord->setImplicitDestructorIsDeleted();
         SetDeclDeleted(Dtor, CXXRecord->getLocation());
+        CXXRecord->addedSelectedDestructor(Dtor);
       }
     }
 

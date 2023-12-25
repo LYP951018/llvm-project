@@ -2202,6 +2202,8 @@ void TextNodeDumper::VisitCXXRecordDecl(const CXXRecordDecl *D) {
       FLAG(hasUserProvidedDefaultConstructor, user_provided);
       FLAG(hasConstexprDefaultConstructor, constexpr);
       FLAG(needsImplicitDefaultConstructor, needs_implicit);
+      if (!D->needsOverloadResolutionForDefaultConstructor())
+        FLAG(defaultedDefaultConstructorIsDeleted, defaulted_is_deleted);
       FLAG(defaultedDefaultConstructorIsConstexpr, defaulted_is_constexpr);
     });
 

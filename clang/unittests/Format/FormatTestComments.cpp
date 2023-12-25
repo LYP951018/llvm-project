@@ -3809,7 +3809,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
 
   Style = getLLVMStyle();
   StringRef Code =
-      "//Free comment without space\n"
+      u8"//Free comment without space\n"
       "\n"
       "//   Free comment with 3 spaces\n"
       "\n"
@@ -3880,7 +3880,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
       "//vv will only move\n"
       "//} if the line above does";
 
-  EXPECT_EQ("// Free comment without space\n"
+  EXPECT_EQ(u8"// Free comment without space\n"
             "\n"
             "//   Free comment with 3 spaces\n"
             "\n"
@@ -3954,7 +3954,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
 
   Style.SpacesInLineCommentPrefix = {0, 0};
   EXPECT_EQ("//#comment", format("//   #comment", Style));
-  EXPECT_EQ("//Free comment without space\n"
+  EXPECT_EQ(u8"//Free comment without space\n"
             "\n"
             "//Free comment with 3 spaces\n"
             "\n"
@@ -4027,7 +4027,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
             format(Code, Style));
 
   Style.SpacesInLineCommentPrefix = {2, -1u};
-  EXPECT_EQ("//  Free comment without space\n"
+  EXPECT_EQ(u8"//  Free comment without space\n"
             "\n"
             "//   Free comment with 3 spaces\n"
             "\n"
@@ -4357,7 +4357,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
                    Style));
 
   Style = getLLVMStyleWithColumns(0);
-  EXPECT_EQ("// Free comment without space\n"
+  EXPECT_EQ(u8"// Free comment without space\n"
             "\n"
             "//   Free comment with 3 spaces\n"
             "\n"
@@ -4430,7 +4430,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
             format(Code, Style));
 
   Style.SpacesInLineCommentPrefix = {0, 0};
-  EXPECT_EQ("//Free comment without space\n"
+  EXPECT_EQ(u8"//Free comment without space\n"
             "\n"
             "//Free comment with 3 spaces\n"
             "\n"
@@ -4503,7 +4503,7 @@ TEST_F(FormatTestComments, SpaceAtLineCommentBegin) {
             format(Code, Style));
 
   Style.SpacesInLineCommentPrefix = {2, -1u};
-  EXPECT_EQ("//  Free comment without space\n"
+  EXPECT_EQ(u8"//  Free comment without space\n"
             "\n"
             "//   Free comment with 3 spaces\n"
             "\n"

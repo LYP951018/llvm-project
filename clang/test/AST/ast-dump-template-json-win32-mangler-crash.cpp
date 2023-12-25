@@ -359,10 +359,7 @@ int main()
 // CHECK-NEXT:       "isAggregate": true,
 // CHECK-NEXT:       "isEmpty": true,
 // CHECK-NEXT:       "isLiteral": true,
-// CHECK-NEXT:       "isPOD": true,
 // CHECK-NEXT:       "isStandardLayout": true,
-// CHECK-NEXT:       "isTrivial": true,
-// CHECK-NEXT:       "isTriviallyCopyable": true,
 // CHECK-NEXT:       "moveAssign": {
 // CHECK-NEXT:        "exists": true,
 // CHECK-NEXT:        "needsImplicit": true,

@@ -191,7 +191,7 @@ template <typename... Ts> void test(Ts... a) {
 // CHECK-NEXT:    |-LambdaExpr {{.*}} <line:30:3, col:27> '(lambda at {{.*}}ast-dump-lambda.cpp:30:3)'
 // CHECK-NEXT:    | |-CXXRecordDecl {{.*}} <col:3> col:3{{( imported)?}} implicit{{( <undeserialized declarations>)?}} class definition
 // CHECK-NEXT:    | | |-DefinitionData lambda trivially_copyable literal can_const_default_init
-// CHECK-NEXT:    | | | |-DefaultConstructor
+// CHECK-NEXT:    | | | |-DefaultConstructor defaulted_is_deleted
 // CHECK-NEXT:    | | | |-CopyConstructor simple trivial has_const_param needs_implicit implicit_has_const_param
 // CHECK-NEXT:    | | | |-MoveConstructor exists simple trivial needs_implicit
 // CHECK-NEXT:    | | | |-CopyAssignment trivial has_const_param needs_implicit implicit_has_const_param

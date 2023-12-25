@@ -36,10 +36,13 @@ class Deleted2a {
   Deleted2a() = default;  // expected-note 4{{implicitly deleted here}}
   int &a; // expected-note 4{{because field 'a' of reference type 'int &' would not be initialized}}
 };
+static_assert(!__is_trivial(Deleted2a), "");
 Deleted2a d2a; // expected-error {{implicitly-deleted default constructor}}
 struct Deleted2b {
   int &&b; // expected-note {{default constructor of 'Deleted2b' is implicitly deleted because field 'b' of reference type 'int &&' would not be initialized}}
 };
+static_assert(!__is_trivial(Deleted2b), "");
+
 Deleted2b d2b; // expected-error {{deleted default constructor}}
 class NotDeleted2a { int &a = n; };
 NotDeleted2a nd2a;
@@ -57,8 +60,10 @@ NotDeleted2d nd2d; // expected-note {{first required here}}
 class Deleted3a { const int a; }; // expected-note {{because field 'a' of const-qualified type 'const int' would not be initialized}} \
                                      expected-warning {{does not declare any constructor}} \
                                      expected-note {{will never be initialized}}
+static_assert(!__is_trivial(Deleted3a), "");
 Deleted3a d3a; // expected-error {{implicitly-deleted default constructor}}
 class Deleted3b { const DefaultedDefCtorUninitialized1 a[42]; }; // expected-note {{because field 'a' of const-qualified type 'const DefaultedDefCtorUninitialized1[42]' would not be initialized}}
+static_assert(!__is_trivial(Deleted3a), "");
 Deleted3b d3b; // expected-error {{implicitly-deleted default constructor}}
 class Deleted3c { const DefaultedDefCtorUninitialized2 a; }; // expected-note {{because field 'a' of const-qualified type 'const DefaultedDefCtorUninitialized2' would not be initialized}}
 Deleted3c d3c; // expected-error {{implicitly-deleted default constructor}}
@@ -194,7 +199,7 @@ static_assert(!__has_trivial_constructor(NonTrivialDefCtor8), "");
 // Otherwise, the default constructor is non-trivial.
 
 class Trivial2 { Trivial2() = delete; };
-static_assert(__has_trivial_constructor(Trivial2), "Trivial2 is trivial");
+static_assert(!__has_trivial_constructor(Trivial2), "Trivial2 is trivial");
 
 class Trivial3 { Trivial3() = default; };
 static_assert(__has_trivial_constructor(Trivial3), "Trivial3 is trivial");
@@ -203,7 +208,7 @@ template<typename T> class Trivial4 { Trivial4() = default; };
 static_assert(__has_trivial_constructor(Trivial4<int>), "Trivial4 is trivial");
 
 template<typename T> class Trivial5 { Trivial5() = delete; };
-static_assert(__has_trivial_constructor(Trivial5<int>), "Trivial5 is trivial");
+static_assert(!__has_trivial_constructor(Trivial5<int>), "Trivial5 is trivial");
 
 namespace PR14558 {
   // Ensure we determine whether an explicitly-defaulted or deleted special
@@ -213,6 +218,6 @@ namespace PR14558 {
     struct C { C() = delete; } c;
   };
 
-  static_assert(__has_trivial_constructor(A), "");
+  static_assert(!__has_trivial_constructor(A), "");
   static_assert(__has_trivial_constructor(A::B), "");
 }

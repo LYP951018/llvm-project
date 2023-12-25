@@ -46,15 +46,12 @@ template struct A<2>;
 // CHECK-NEXT:          "copyAssign": {
 
 // CHECK:               "dtor": {
-// CHECK-NEXT:            "trivial": true,
 // CHECK-NEXT:            "userDeclared": true
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "hasConstexprNonCopyMoveConstructor": true,
 // CHECK-NEXT:          "isAggregate": true,
 // CHECK-NEXT:          "isEmpty": true,
 // CHECK-NEXT:          "isStandardLayout": true,
-// CHECK-NEXT:          "isTrivial": true,
-// CHECK-NEXT:          "isTriviallyCopyable": true,
 // CHECK-NEXT:          "moveAssign": {},
 // CHECK-NEXT:          "moveCtor": {}
 

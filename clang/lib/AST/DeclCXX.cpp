@@ -83,11 +83,13 @@ CXXRecordDecl::DefinitionData::DefinitionData(CXXRecordDecl *D)
       HasUninitializedReferenceMember(false), HasUninitializedFields(false),
       HasInheritedConstructor(false), HasInheritedDefaultConstructor(false),
       HasInheritedAssignment(false),
+      NeedOverloadResolutionForDefaultConstructor(false),
       NeedOverloadResolutionForCopyConstructor(false),
       NeedOverloadResolutionForMoveConstructor(false),
       NeedOverloadResolutionForCopyAssignment(false),
       NeedOverloadResolutionForMoveAssignment(false),
       NeedOverloadResolutionForDestructor(false),
+      DefaultedDefaultConstructorIsDeleted(false),
       DefaultedCopyConstructorIsDeleted(false),
       DefaultedMoveConstructorIsDeleted(false),
       DefaultedCopyAssignmentIsDeleted(false),
@@ -517,6 +519,8 @@ void CXXRecordDecl::addedClassSubobject(CXXRecordDecl *Subobj) {
     data().NeedOverloadResolutionForCopyConstructor = true;
   if (!Subobj->hasSimpleMoveConstructor())
     data().NeedOverloadResolutionForMoveConstructor = true;
+  if (!Subobj->hasSimpleDefaultConstructor())
+    data().NeedOverloadResolutionForDefaultConstructor = true;
 
   // C++11 [class.copy]p23:
   //   A defaulted copy/move assignment operator for a class X is defined as
@@ -540,6 +544,7 @@ void CXXRecordDecl::addedClassSubobject(CXXRecordDecl *Subobj) {
     data().NeedOverloadResolutionForCopyConstructor = true;
     data().NeedOverloadResolutionForMoveConstructor = true;
     data().NeedOverloadResolutionForDestructor = true;
+    data().NeedOverloadResolutionForDefaultConstructor = true;
   }
 
   // C++2a [dcl.constexpr]p4:
@@ -563,6 +568,15 @@ bool CXXRecordDecl::hasConstexprDestructor() const {
   return Dtor ? Dtor->isConstexpr() : defaultedDestructorIsConstexpr();
 }
 
+bool CXXRecordDecl::isImplicitDestructorEligible() const {
+  if (!needsImplicitDestructor())
+    return false;
+  if (data().DefaultedDestructorIsDeleted &&
+      !areDeletedSMFStillEligible(getASTContext()))
+    return false;
+  return true;
+}
+
 bool CXXRecordDecl::hasAnyDependentBases() const {
   if (!isDependentContext())
     return false;
@@ -571,6 +585,13 @@ bool CXXRecordDecl::hasAnyDependentBases() const {
 }
 
 bool CXXRecordDecl::isTriviallyCopyable() const {
+  if (!areDeletedSMFStillEligible(getASTContext())) {
+    bool AnyTrivial = hasTrivialCopyConstructor() || hasTrivialMoveConstructor() || hasTrivialCopyAssignment() ||
+                      hasTrivialMoveAssignment();
+    if (!AnyTrivial)
+      return false;
+  }
+
   // C++0x [class]p5:
   //   A trivially copyable class is a class that:
   //   -- has no non-trivial copy constructors,
@@ -1036,6 +1057,7 @@ void CXXRecordDecl::addedMember(Decl *D) {
         Data.HasIrrelevantDestructor = false;
 
         if (isUnion()) {
+          data().DefaultedDefaultConstructorIsDeleted = true;
           data().DefaultedCopyConstructorIsDeleted = true;
           data().DefaultedMoveConstructorIsDeleted = true;
           data().DefaultedCopyAssignmentIsDeleted = true;
@@ -1046,6 +1068,7 @@ void CXXRecordDecl::addedMember(Decl *D) {
           data().NeedOverloadResolutionForCopyAssignment = true;
           data().NeedOverloadResolutionForMoveAssignment = true;
           data().NeedOverloadResolutionForDestructor = true;
+          data().NeedOverloadResolutionForDefaultConstructor = true;
         }
       } else if (!Context.getLangOpts().ObjCAutoRefCount) {
         setHasObjectMember(true);
@@ -1054,8 +1077,10 @@ void CXXRecordDecl::addedMember(Decl *D) {
       data().PlainOldData = false;
 
     if (T->isReferenceType()) {
-      if (!Field->hasInClassInitializer())
+      if (!Field->hasInClassInitializer()) {
         data().HasUninitializedReferenceMember = true;
+        data().DefaultedDefaultConstructorIsDeleted = true;
+      }
 
       // C++0x [class]p7:
       //   A standard-layout class is a class that:
@@ -1115,6 +1140,9 @@ void CXXRecordDecl::addedMember(Decl *D) {
       data().DefaultedMoveAssignmentIsDeleted = true;
     }
 
+    const bool IsConstWithoutInitializer =
+        !isUnion() && T.isConstQualified() && !Field->hasInClassInitializer();
+
     // Bitfields of length 0 are also zero-sized, but we already bailed out for
     // those because they are always unnamed.
     bool IsZeroSize = Field->isZeroSize(Context);
@@ -1167,6 +1195,8 @@ void CXXRecordDecl::addedMember(Decl *D) {
               FieldRec->data().NeedOverloadResolutionForMoveAssignment;
           data().NeedOverloadResolutionForDestructor |=
               FieldRec->data().NeedOverloadResolutionForDestructor;
+          data().NeedOverloadResolutionForDefaultConstructor |=
+              FieldRec->data().NeedOverloadResolutionForDefaultConstructor;
         }
 
         // C++0x [class.ctor]p5:
@@ -1313,6 +1343,9 @@ void CXXRecordDecl::addedMember(Decl *D) {
         if (FieldRec->hasVariantMembers() &&
             Field->isAnonymousStructOrUnion())
           data().HasVariantMembers = true;
+
+        if (IsConstWithoutInitializer && !FieldRec->allowConstDefaultInit())
+          data().DefaultedDefaultConstructorIsDeleted = true;
       }
     } else {
       // Base element type of field is a non-class type.
@@ -1338,6 +1371,9 @@ void CXXRecordDecl::addedMember(Decl *D) {
       // We deal with class types elsewhere.
       if (!T->isStructuralType())
         data().StructuralIfLiteral = false;
+
+      if (IsConstWithoutInitializer)
+        data().DefaultedDefaultConstructorIsDeleted = true;
     }
 
     // C++14 [meta.unary.prop]p4:
@@ -1345,6 +1381,10 @@ void CXXRecordDecl::addedMember(Decl *D) {
     //   than subobjects of zero size
     if (data().Empty && !IsZeroSize)
       data().Empty = false;
+
+    // X is a union and all of its variant members are of const-qualified type (or possibly multi-dimensional array thereof),
+    if (isUnion() && T.isConstQualified())
+      data().NeedOverloadResolutionForDefaultConstructor = true;
   }
 
   // Handle using declarations of conversion functions.
@@ -1367,11 +1407,18 @@ void CXXRecordDecl::addedMember(Decl *D) {
 
     if (Using->getDeclName().getCXXOverloadedOperator() == OO_Equal)
       data().HasInheritedAssignment = true;
+
   }
 }
 
-void CXXRecordDecl::addedSelectedDestructor(CXXDestructorDecl *DD) {
+void CXXRecordDecl::addedSelectedDestructor(CXXDestructorDecl* DD) {
   DD->setIneligibleOrNotSelected(false);
+  if (DD->isDeleted() && !areDeletedSMFStillEligible(getASTContext())) {
+    data().HasTrivialSpecialMembers &= ~SMF_Destructor;
+    data().HasTrivialSpecialMembersForCall &= ~SMF_Destructor;
+    data().DeclaredNonTrivialSpecialMembers &= ~SMF_Destructor;
+    return;
+  }
   addedEligibleSpecialMemberFunction(DD, SMF_Destructor);
 }
 
@@ -1397,6 +1444,10 @@ void CXXRecordDecl::addedEligibleSpecialMemberFunction(const CXXMethodDecl *MD,
 
     if (DD->isNoReturn())
       data().IsAnyDestructorNoReturn = true;
+
+    if (DD->isDeleted()) {
+        return;
+    }
   }
 
   if (!MD->isImplicit() && !MD->isUserProvided()) {
@@ -1419,6 +1470,70 @@ void CXXRecordDecl::addedEligibleSpecialMemberFunction(const CXXMethodDecl *MD,
     // class later, which can change the special method's triviality).
     if (!MD->isUserProvided())
       data().DeclaredNonTrivialSpecialMembersForCall |= SMKind;
+  }
+}
+
+void CXXRecordDecl::updateDeletedImplicitTriviality() {
+  if (areDeletedSMFStillEligible(getASTContext()))
+    return;
+
+  if (needsImplicitDefaultConstructor() && defaultedDefaultConstructorIsDeleted()) {
+    data().HasTrivialSpecialMembers &= ~SMF_DefaultConstructor;
+   }
+
+  if (needsImplicitCopyConstructor() && defaultedCopyConstructorIsDeleted()) {
+    data().HasTrivialSpecialMembers &= ~SMF_CopyConstructor;
+  }
+
+  if (getASTContext().getLangOpts().CPlusPlus11 && needsImplicitMoveConstructor() &&
+      defaultedMoveConstructorIsDeleted()) {
+    data().HasTrivialSpecialMembers &= ~SMF_MoveConstructor;
+  }
+
+  if (needsImplicitCopyAssignment() && data().DefaultedCopyAssignmentIsDeleted) {
+    data().HasTrivialSpecialMembers &= ~SMF_CopyAssignment;
+  }
+
+  if (getASTContext().getLangOpts().CPlusPlus11 && needsImplicitMoveAssignment() && data().
+      DefaultedMoveAssignmentIsDeleted) {
+    data().HasTrivialSpecialMembers &= ~SMF_MoveAssignment;
+  }
+}
+
+bool CXXRecordDecl::areDeletedSMFStillEligible(const ASTContext &Context) {
+  if (Context.getLangOpts().getClangABICompat() <= LangOptions::ClangABI::Ver17)
+    return true;
+  if (!Context.getLangOpts().CPlusPlus11) {
+    return true;
+  }
+  const auto &TargetInfo = Context.getTargetInfo();
+  if (TargetInfo.getTriple().isPS4() ||
+      TargetInfo.getCXXABI().getTailPaddingUseRules() ==
+          TargetCXXABI::UseTailPaddingUnlessPOD11)
+    return true;
+  return false;
+}
+
+void CXXRecordDecl::setNoEligibleSpecialMemberFunction(unsigned SMKind) {
+  const std::uint32_t IsImplicitEligible =
+      (needsImplicitDefaultConstructor() &&
+       !data().DefaultedDefaultConstructorIsDeleted) |
+      (needsImplicitCopyConstructor() &&
+       !data().DefaultedCopyConstructorIsDeleted)
+          << 1 |
+      (needsImplicitMoveConstructor() &&
+       !data().DefaultedMoveConstructorIsDeleted)
+          << 2 |
+      (needsImplicitCopyAssignment() &&
+       !data().DefaultedCopyAssignmentIsDeleted)
+          << 3 |
+      (needsImplicitMoveAssignment() &&
+       !data().DefaultedMoveAssignmentIsDeleted)
+          << 4;
+  if (!(IsImplicitEligible & SMKind)) {
+    data().HasTrivialSpecialMembersForCall &= ~SMKind;
+    data().DeclaredNonTrivialSpecialMembers &= ~SMKind;
+    data().HasTrivialSpecialMembers &= ~SMKind;
   }
 }
 
@@ -1445,6 +1560,8 @@ void CXXRecordDecl::finishedDefaultedOrDeletedMember(CXXMethodDecl *D) {
     SMKind |= SMF_Destructor;
     if (!D->isTrivial() || D->getAccess() != AS_public || D->isDeleted())
       data().HasIrrelevantDestructor = false;
+    if (D->isDeleted() && !areDeletedSMFStillEligible(getASTContext()))
+      return;
   } else if (D->isCopyAssignmentOperator())
     SMKind |= SMF_CopyAssignment;
   else if (D->isMoveAssignmentOperator())
@@ -1517,6 +1634,31 @@ bool CXXRecordDecl::isCLike() const {
     return true;
 
   return isPOD() && data().HasOnlyCMembers;
+}
+
+bool CXXRecordDecl::isImplicitMoveConstructorEligible() const {
+  if (!getASTContext().getLangOpts().CPlusPlus11) {
+    return false;
+  }
+  if (!needsImplicitMoveConstructor())
+    return false;
+  if (defaultedMoveConstructorIsDeleted() &&
+      !areDeletedSMFStillEligible(getASTContext()))
+    return false;
+  return true;
+}
+
+bool CXXRecordDecl::isImplicitMoveAssignmentEligible() const {
+  if (!getASTContext().getLangOpts().CPlusPlus11) {
+    return false;
+  }
+  if (!needsImplicitMoveAssignment())
+    return false;
+
+  if (data().DefaultedMoveAssignmentIsDeleted &&
+      !areDeletedSMFStillEligible(getASTContext()))
+    return false;
+  return true;
 }
 
 bool CXXRecordDecl::isGenericLambda() const {

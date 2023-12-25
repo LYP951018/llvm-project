@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -std=c++11 -verify %s -Wno-deprecated-builtins -Wno-defaulted-function-deleted
 // RUN: %clang_cc1 -std=c++11 -verify %s -Wno-deprecated-builtins -Wno-defaulted-function-deleted -fclang-abi-compat=14 -DCLANG_ABI_COMPAT=14
+// RUN: %clang_cc1 -std=c++11 -verify %s -Wno-deprecated-builtins -Wno-defaulted-function-deleted -fclang-abi-compat=17 -DCLANG_ABI_COMPAT=17
 
 // expected-no-diagnostics
 
@@ -213,7 +214,14 @@ namespace TrivialityDependsOnDestructor {
     Test(Test&&) = default;
   };
   // Implicit copy ctor calls deleted trivial copy ctor.
+  // since clang 16, __has_trivial_copy means "has trivial eligible copy constrcutor"
+  // since clang 18, deleted members are not treated as eligible
+#if defined(CLANG_ABI_COMPAT) && CLANG_ABI_COMPAT <= 17
   static_assert(__has_trivial_copy(Test), "");
+#else
+  static_assert(!__has_trivial_copy(Test), "");
+#endif
+  static_assert(!__is_trivially_copyable(Test), "");
   // This is false because the destructor is deleted.
   static_assert(!__is_trivially_constructible(Test, const Test &), "");
   // Implicit move ctor calls template ctor.

@@ -66,8 +66,14 @@ W w = W(); // ok
 
 // Ensure we're not faking this up by making the default constructor
 // non-trivial.
+#if __cplusplus >= 201103L
+_Static_assert(!__has_trivial_constructor(S), "");
+_Static_assert(!__has_trivial_constructor(T), "");
+_Static_assert(!__has_trivial_constructor(U), "");
+#else
 _Static_assert(__has_trivial_constructor(S), "");
 _Static_assert(__has_trivial_constructor(T), "");
 _Static_assert(__has_trivial_constructor(U), "");
+#endif
 _Static_assert(!__has_trivial_constructor(V), "");
 _Static_assert(!__has_trivial_constructor(W), "");

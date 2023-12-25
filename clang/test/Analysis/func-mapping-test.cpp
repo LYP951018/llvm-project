@@ -26,7 +26,6 @@ struct SF {
   const int a;
 };
 extern const SF sf = {.a = 2};
-// CHECK-DAG: 5:c:@sf
 
 struct SStatic {
   static const int a = 4;

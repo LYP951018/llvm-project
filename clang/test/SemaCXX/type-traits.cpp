@@ -2,9 +2,19 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++14 -fblocks -Wno-deprecated-builtins -Wno-defaulted-function-deleted %s
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++17 -fblocks -Wno-deprecated-builtins -Wno-defaulted-function-deleted %s
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++20 -fblocks -Wno-deprecated-builtins -Wno-defaulted-function-deleted %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++20 -fblocks -Wno-deprecated-builtins -Wno-defaulted-function-deleted -fclang-abi-compat=17 -DCLANG_ABI_COMPAT=17 %s
 
 #define T(b) (b) ? 1 : -1
 #define F(b) (b) ? -1 : 1
+
+// CLANG_ABI_COMPAT_17_T: pre-17 ABI is true, post-17 ABI is false.
+#if defined(CLANG_ABI_COMPAT) && CLANG_ABI_COMPAT <= 17
+#define CLANG_ABI_COMPAT_17_T T
+#define CLANG_ABI_COMPAT_17_F F
+#else
+#define CLANG_ABI_COMPAT_17_F T
+#define CLANG_ABI_COMPAT_17_T F
+#endif
 
 struct NonPOD { NonPOD(int); };
 typedef NonPOD NonPODAr[10];
@@ -1375,8 +1385,7 @@ void is_trivial2()
   int t21[T(__is_trivial(UnionAr))];
   int t22[T(__is_trivial(TrivialStruct))];
   int t23[T(__is_trivial(AllDefaulted))];
-  int t24[T(__is_trivial(AllDeleted))];
-
+  int t24[CLANG_ABI_COMPAT_17_T(__is_trivial(AllDeleted))];
   int t30[F(__is_trivial(void))];
   int t31[F(__is_trivial(NonTrivialStruct))];
   int t32[F(__is_trivial(SuperNonTrivialStruct))];
@@ -1417,7 +1426,7 @@ void is_trivially_copyable2()
   int t22[T(__is_trivially_copyable(TrivialStruct))];
   int t23[T(__is_trivially_copyable(NonTrivialStruct))];
   int t24[T(__is_trivially_copyable(AllDefaulted))];
-  int t25[T(__is_trivially_copyable(AllDeleted))];
+  int t25[CLANG_ABI_COMPAT_17_T(__is_trivially_copyable(AllDeleted))];
 
   int t30[F(__is_trivially_copyable(void))];
   int t31[F(__is_trivially_copyable(SuperNonTrivialStruct))];
@@ -1653,7 +1662,7 @@ void has_trivial_default_constructor() {
   { int arr[T(__has_trivial_constructor(HasMoveAssign))]; }
   { int arr[T(__has_trivial_constructor(const Int))]; }
   { int arr[T(__has_trivial_constructor(AllDefaulted))]; }
-  { int arr[T(__has_trivial_constructor(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_constructor(AllDeleted))]; }
   { int arr[T(__has_trivial_constructor(ACompleteType[]))]; }
 
   { int arr[F(__has_trivial_constructor(AnIncompleteType[]))]; } // expected-error {{incomplete type}}
@@ -1686,7 +1695,7 @@ void has_trivial_move_constructor() {
   { int arr[T(__has_trivial_move_constructor(Union))]; }
   { int arr[T(__has_trivial_move_constructor(HasCons))]; }
   { int arr[T(__has_trivial_move_constructor(HasStaticMemberMoveCtor))]; }
-  { int arr[T(__has_trivial_move_constructor(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_move_constructor(AllDeleted))]; }
   { int arr[T(__has_trivial_move_constructor(ACompleteType[]))]; }
 
   { int arr[F(__has_trivial_move_constructor(AnIncompleteType[]))]; } // expected-error {{incomplete type}}
@@ -1710,13 +1719,14 @@ void has_trivial_copy_constructor() {
   { int arr[T(__has_trivial_copy(HasPriv))]; }
   { int arr[T(__has_trivial_copy(HasCons))]; }
   { int arr[T(__has_trivial_copy(HasRef))]; }
-  { int arr[T(__has_trivial_copy(HasMove))]; }
+  // 
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_copy(HasMove))]; }
   { int arr[T(__has_trivial_copy(IntRef))]; }
   { int arr[T(__has_trivial_copy(HasCopyAssign))]; }
-  { int arr[T(__has_trivial_copy(HasMoveAssign))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_copy(HasMoveAssign))]; }
   { int arr[T(__has_trivial_copy(const Int))]; }
   { int arr[T(__has_trivial_copy(AllDefaulted))]; }
-  { int arr[T(__has_trivial_copy(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_copy(AllDeleted))]; }
   { int arr[T(__has_trivial_copy(DerivesAr))]; }
   { int arr[T(__has_trivial_copy(DerivesHasRef))]; }
   { int arr[T(__has_trivial_copy(ACompleteType[]))]; }
@@ -1741,14 +1751,14 @@ void has_trivial_copy_assignment() {
   { int arr[T(__has_trivial_assign(HasDest))]; }
   { int arr[T(__has_trivial_assign(HasPriv))]; }
   { int arr[T(__has_trivial_assign(HasCons))]; }
-  { int arr[T(__has_trivial_assign(HasRef))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_assign(HasRef))]; }
   { int arr[T(__has_trivial_assign(HasCopy))]; }
-  { int arr[T(__has_trivial_assign(HasMove))]; }
-  { int arr[T(__has_trivial_assign(HasMoveAssign))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_assign(HasMove))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_assign(HasMoveAssign))]; }
   { int arr[T(__has_trivial_assign(AllDefaulted))]; }
-  { int arr[T(__has_trivial_assign(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_assign(AllDeleted))]; }
   { int arr[T(__has_trivial_assign(DerivesAr))]; }
-  { int arr[T(__has_trivial_assign(DerivesHasRef))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_assign(DerivesHasRef))]; }
   { int arr[T(__has_trivial_assign(ACompleteType[]))]; }
 
   { int arr[F(__has_trivial_assign(AnIncompleteType[]))]; } // expected-error {{incomplete type}}
@@ -1785,7 +1795,7 @@ void has_trivial_destructor() {
   { int arr[T(__has_trivial_destructor(DerivesAr))]; }
   { int arr[T(__has_trivial_destructor(VirtAr))]; }
   { int arr[T(__has_trivial_destructor(AllDefaulted))]; }
-  { int arr[T(__has_trivial_destructor(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_destructor(AllDeleted))]; }
   { int arr[T(__has_trivial_destructor(DerivesHasRef))]; }
   { int arr[T(__has_trivial_destructor(ACompleteType[]))]; }
 
@@ -1868,7 +1878,7 @@ void has_nothrow_move_assign() {
   { int arr[T(__has_nothrow_move_assign(HasNoExceptNoThrowMoveAssign))]; }
   { int arr[T(__has_nothrow_move_assign(HasMemberNoThrowMoveAssign))]; }
   { int arr[T(__has_nothrow_move_assign(HasMemberNoExceptNoThrowMoveAssign))]; }
-  { int arr[T(__has_nothrow_move_assign(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_nothrow_move_assign(AllDeleted))]; }
   { int arr[T(__has_nothrow_move_assign(ACompleteType[]))]; }
 
   { int arr[F(__has_nothrow_move_assign(AnIncompleteType[]))]; } // expected-error {{incomplete type}}
@@ -1902,7 +1912,7 @@ void has_trivial_move_assign() {
   //    selected to copy/move that member is trivial;
   { int arr[T(__has_trivial_move_assign(Int))]; }
   { int arr[T(__has_trivial_move_assign(HasStaticMemberMoveAssign))]; }
-  { int arr[T(__has_trivial_move_assign(AllDeleted))]; }
+  { int arr[CLANG_ABI_COMPAT_17_T(__has_trivial_move_assign(AllDeleted))]; }
   { int arr[T(__has_trivial_move_assign(ACompleteType[]))]; }
 
   { int arr[F(__has_trivial_move_assign(AnIncompleteType[]))]; } // expected-error {{incomplete type}}

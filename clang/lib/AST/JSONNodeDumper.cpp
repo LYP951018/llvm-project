@@ -383,7 +383,9 @@ createDefaultConstructorDefinitionData(const CXXRecordDecl *RD) {
 
   FIELD2("exists", hasDefaultConstructor);
   FIELD2("trivial", hasTrivialDefaultConstructor);
-  FIELD2("nonTrivial", hasNonTrivialDefaultConstructor);
+  if (!RD->isDependentType()) {
+      FIELD2("nonTrivial", hasNonTrivialDefaultConstructor);
+  }
   FIELD2("userProvided", hasUserProvidedDefaultConstructor);
   FIELD2("isConstexpr", hasConstexprDefaultConstructor);
   FIELD2("needsImplicit", needsImplicitDefaultConstructor);
@@ -396,16 +398,19 @@ static llvm::json::Object
 createCopyConstructorDefinitionData(const CXXRecordDecl *RD) {
   llvm::json::Object Ret;
 
-  FIELD2("simple", hasSimpleCopyConstructor);
-  FIELD2("trivial", hasTrivialCopyConstructor);
-  FIELD2("nonTrivial", hasNonTrivialCopyConstructor);
-  FIELD2("userDeclared", hasUserDeclaredCopyConstructor);
-  FIELD2("hasConstParam", hasCopyConstructorWithConstParam);
-  FIELD2("implicitHasConstParam", implicitCopyConstructorHasConstParam);
-  FIELD2("needsImplicit", needsImplicitCopyConstructor);
-  FIELD2("needsOverloadResolution", needsOverloadResolutionForCopyConstructor);
-  if (!RD->needsOverloadResolutionForCopyConstructor())
-    FIELD2("defaultedIsDeleted", defaultedCopyConstructorIsDeleted);
+    FIELD2("simple", hasSimpleCopyConstructor);
+    FIELD2("trivial", hasTrivialCopyConstructor);
+    if (!RD->isDependentType()) {
+        FIELD2("nonTrivial", hasNonTrivialCopyConstructor);
+    }
+    FIELD2("userDeclared", hasUserDeclaredCopyConstructor);
+    FIELD2("hasConstParam", hasCopyConstructorWithConstParam);
+    FIELD2("implicitHasConstParam", implicitCopyConstructorHasConstParam);
+    FIELD2("needsImplicit", needsImplicitCopyConstructor);
+    FIELD2("needsOverloadResolution",
+           needsOverloadResolutionForCopyConstructor);
+    if (!RD->needsOverloadResolutionForCopyConstructor())
+      FIELD2("defaultedIsDeleted", defaultedCopyConstructorIsDeleted);
 
   return Ret;
 }
@@ -414,16 +419,19 @@ static llvm::json::Object
 createMoveConstructorDefinitionData(const CXXRecordDecl *RD) {
   llvm::json::Object Ret;
 
-  FIELD2("exists", hasMoveConstructor);
-  FIELD2("simple", hasSimpleMoveConstructor);
-  FIELD2("trivial", hasTrivialMoveConstructor);
-  FIELD2("nonTrivial", hasNonTrivialMoveConstructor);
-  FIELD2("userDeclared", hasUserDeclaredMoveConstructor);
-  FIELD2("needsImplicit", needsImplicitMoveConstructor);
-  FIELD2("needsOverloadResolution", needsOverloadResolutionForMoveConstructor);
-  if (!RD->needsOverloadResolutionForMoveConstructor())
-    FIELD2("defaultedIsDeleted", defaultedMoveConstructorIsDeleted);
 
+      FIELD2("exists", hasMoveConstructor);
+      FIELD2("simple", hasSimpleMoveConstructor);
+      FIELD2("trivial", hasTrivialMoveConstructor);
+      if (!RD->isDependentType()) {
+          FIELD2("nonTrivial", hasNonTrivialMoveConstructor);
+      }
+      FIELD2("userDeclared", hasUserDeclaredMoveConstructor);
+      FIELD2("needsImplicit", needsImplicitMoveConstructor);
+      FIELD2("needsOverloadResolution", needsOverloadResolutionForMoveConstructor);
+      if (!RD->needsOverloadResolutionForMoveConstructor())
+          FIELD2("defaultedIsDeleted", defaultedMoveConstructorIsDeleted);
+  
   return Ret;
 }
 
@@ -433,7 +441,9 @@ createCopyAssignmentDefinitionData(const CXXRecordDecl *RD) {
 
   FIELD2("simple", hasSimpleCopyAssignment);
   FIELD2("trivial", hasTrivialCopyAssignment);
-  FIELD2("nonTrivial", hasNonTrivialCopyAssignment);
+  if (!RD->isDependentType()) {
+      FIELD2("nonTrivial", hasNonTrivialCopyAssignment);
+  }
   FIELD2("hasConstParam", hasCopyAssignmentWithConstParam);
   FIELD2("implicitHasConstParam", implicitCopyAssignmentHasConstParam);
   FIELD2("userDeclared", hasUserDeclaredCopyAssignment);
@@ -450,7 +460,9 @@ createMoveAssignmentDefinitionData(const CXXRecordDecl *RD) {
   FIELD2("exists", hasMoveAssignment);
   FIELD2("simple", hasSimpleMoveAssignment);
   FIELD2("trivial", hasTrivialMoveAssignment);
-  FIELD2("nonTrivial", hasNonTrivialMoveAssignment);
+  if (!RD->isDependentType()) {
+      FIELD2("nonTrivial", hasNonTrivialMoveAssignment);
+  }
   FIELD2("userDeclared", hasUserDeclaredMoveAssignment);
   FIELD2("needsImplicit", needsImplicitMoveAssignment);
   FIELD2("needsOverloadResolution", needsOverloadResolutionForMoveAssignment);
@@ -465,7 +477,9 @@ createDestructorDefinitionData(const CXXRecordDecl *RD) {
   FIELD2("simple", hasSimpleDestructor);
   FIELD2("irrelevant", hasIrrelevantDestructor);
   FIELD2("trivial", hasTrivialDestructor);
-  FIELD2("nonTrivial", hasNonTrivialDestructor);
+  if (!RD->isDependentType()) {
+      FIELD2("nonTrivial", hasNonTrivialDestructor);
+  }
   FIELD2("userDeclared", hasUserDeclaredDestructor);
   FIELD2("needsImplicit", needsImplicitDestructor);
   FIELD2("needsOverloadResolution", needsOverloadResolutionForDestructor);
@@ -485,13 +499,16 @@ JSONNodeDumper::createCXXRecordDefinitionData(const CXXRecordDecl *RD) {
   FIELD1(isEmpty);
   FIELD1(isAggregate);
   FIELD1(isStandardLayout);
-  FIELD1(isTriviallyCopyable);
-  FIELD1(isPOD);
-  FIELD1(isTrivial);
+  if (!RD->isDependentType()) {
+    FIELD1(isTriviallyCopyable);
+    FIELD1(isPOD);
+    FIELD1(isTrivial);
+    FIELD1(canPassInRegisters);
+  }
+
   FIELD1(isPolymorphic);
   FIELD1(isAbstract);
   FIELD1(isLiteral);
-  FIELD1(canPassInRegisters);
   FIELD1(hasUserDeclaredConstructor);
   FIELD1(hasConstexprNonCopyMoveConstructor);
   FIELD1(hasMutableFields);

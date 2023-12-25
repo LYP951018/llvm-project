@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++98 %s -verify=expected -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++98 %s -verify=expected -fexceptions -fcxx-exceptions -pedantic-errors -Wno-c11-extensions -Dstatic_assert=_Static_assert
 // RUN: %clang_cc1 -std=c++11 %s -verify=expected,cxx11-17,since-cxx11, -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++14 %s -verify=expected,cxx14-17,cxx11-17,since-cxx11,since-cxx14 -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++17 %s -verify=expected,cxx14-17,cxx11-17,since-cxx11,since-cxx14 -fexceptions -fcxx-exceptions -pedantic-errors
@@ -666,13 +666,22 @@ namespace dr1495 { // dr1495: 4
 #endif
 }
 
-namespace dr1496 { // dr1496: no
+namespace dr1496 {
 #if __cplusplus >= 201103L
 struct A {
     A() = delete;
 };
-// FIXME: 'A' should not be trivial because the class lacks at least one
-// default constructor which is not deleted.
-static_assert(__is_trivial(A), "");
+static_assert(!__is_trivial(A), "");
+#endif
+
+struct Foo {
+    int& r;
+};
+
+static_assert(__is_trivially_copyable(Foo), "");
+#if __cplusplus >= 201103L
+static_assert(!__is_trivial(Foo), "");
+#else
+static_assert(__is_trivial(Foo), "");
 #endif
 }

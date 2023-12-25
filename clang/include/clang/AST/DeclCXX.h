@@ -702,6 +702,15 @@ public:
     return data().FirstFriend.isValid();
   }
 
+    /// \c true if a defaulted default constructor for this class would be
+  /// deleted.
+  bool defaultedDefaultConstructorIsDeleted() const {
+     assert((!needsOverloadResolutionForDefaultConstructor() ||
+                  (data().DeclaredSpecialMembers & SMF_DefaultConstructor)) &&
+               "this property has not yet been computed by Sema");
+     return data().DefaultedDefaultConstructorIsDeleted;
+   }
+
   /// \c true if a defaulted copy constructor for this class would be
   /// deleted.
   bool defaultedCopyConstructorIsDeleted() const {
@@ -726,6 +735,13 @@ public:
             (data().DeclaredSpecialMembers & SMF_Destructor)) &&
            "this property has not yet been computed by Sema");
     return data().DefaultedDestructorIsDeleted;
+  }
+
+  /// \c true if we know for sure that this class has a single,
+/// accessible, unambiguous default constructor that is not deleted.
+  bool hasSimpleDefaultConstructor() const {
+    return !hasUserDeclaredConstructor() &&
+           !data().DefaultedDefaultConstructorIsDeleted;
   }
 
   /// \c true if we know for sure that this class has a single,
@@ -769,6 +785,10 @@ public:
            needsImplicitDefaultConstructor();
   }
 
+  bool needsOverloadResolutionForDefaultConstructor() const {
+    return data().NeedOverloadResolutionForDefaultConstructor;
+  }
+
   /// Determine if we need to declare a default constructor for
   /// this class.
   ///
@@ -797,6 +817,15 @@ public:
     return data().UserProvidedDefaultConstructor;
   }
 
+  bool isImplicitDefaultConstructorEligible() const {
+    if (!needsImplicitDefaultConstructor())
+      return false;
+    if (data().DefaultedDefaultConstructorIsDeleted &&
+        !areDeletedSMFStillEligible(getASTContext()))
+      return false;
+    return true;
+  }
+
   /// Determine whether this class has a user-declared copy constructor.
   ///
   /// When false, a copy constructor will be implicitly declared.
@@ -808,6 +837,14 @@ public:
   /// constructor to be lazily declared.
   bool needsImplicitCopyConstructor() const {
     return !(data().DeclaredSpecialMembers & SMF_CopyConstructor);
+  }
+
+  bool isImplicitCopyConstructorEligible() const {
+    if (!needsImplicitCopyConstructor())
+      return false;
+    if (defaultedCopyConstructorIsDeleted() && !areDeletedSMFStillEligible(getASTContext()))
+      return false;
+    return true;
   }
 
   /// Determine whether we need to eagerly declare a defaulted copy
@@ -900,6 +937,8 @@ public:
            !hasUserDeclaredDestructor();
   }
 
+  bool isImplicitMoveConstructorEligible() const;
+
   /// Determine whether we need to eagerly declare a defaulted move
   /// constructor for this class.
   bool needsOverloadResolutionForMoveConstructor() const {
@@ -927,6 +966,14 @@ public:
   /// assignment operator to be lazily declared.
   bool needsImplicitCopyAssignment() const {
     return !(data().DeclaredSpecialMembers & SMF_CopyAssignment);
+  }
+
+  bool isImplicitCopyAssignmentEligible() const {
+    if (!needsImplicitCopyAssignment())
+      return false;
+    if (data().DefaultedCopyAssignmentIsDeleted && !areDeletedSMFStillEligible(getASTContext()))
+      return false;
+    return true;
   }
 
   /// Determine whether we need to eagerly declare a defaulted copy
@@ -991,6 +1038,8 @@ public:
            !hasUserDeclaredDestructor() &&
            (!isLambda() || lambdaIsDefaultConstructibleAndAssignable());
   }
+
+  bool isImplicitMoveAssignmentEligible() const;
 
   /// Determine whether we need to eagerly declare a move assignment
   /// operator for this class.
@@ -1246,7 +1295,7 @@ public:
   /// (C++11 [class.ctor]p5).
   bool hasNonTrivialDefaultConstructor() const {
     return (data().DeclaredNonTrivialSpecialMembers & SMF_DefaultConstructor) ||
-           (needsImplicitDefaultConstructor() &&
+           (isImplicitDefaultConstructorEligible() &&
             !(data().HasTrivialSpecialMembers & SMF_DefaultConstructor));
   }
 
@@ -1287,7 +1336,8 @@ public:
   /// (C++ [class.copy]p6, C++11 [class.copy]p12)
   bool hasNonTrivialCopyConstructor() const {
     return data().DeclaredNonTrivialSpecialMembers & SMF_CopyConstructor ||
-           !hasTrivialCopyConstructor();
+           (isImplicitCopyConstructorEligible() &&
+            !(data().HasTrivialSpecialMembers & SMF_CopyConstructor));
   }
 
   bool hasNonTrivialCopyConstructorForCall() const {
@@ -1312,7 +1362,7 @@ public:
   /// (C++11 [class.copy]p12)
   bool hasNonTrivialMoveConstructor() const {
     return (data().DeclaredNonTrivialSpecialMembers & SMF_MoveConstructor) ||
-           (needsImplicitMoveConstructor() &&
+           (isImplicitMoveConstructorEligible() &&
             !(data().HasTrivialSpecialMembers & SMF_MoveConstructor));
   }
 
@@ -1333,7 +1383,8 @@ public:
   /// operator (C++ [class.copy]p11, C++11 [class.copy]p25)
   bool hasNonTrivialCopyAssignment() const {
     return data().DeclaredNonTrivialSpecialMembers & SMF_CopyAssignment ||
-           !hasTrivialCopyAssignment();
+           (isImplicitCopyAssignmentEligible() &&
+            !(data().HasTrivialSpecialMembers & SMF_CopyAssignment));
   }
 
   /// Determine whether this class has a trivial move assignment operator
@@ -1347,7 +1398,7 @@ public:
   /// operator (C++11 [class.copy]p25)
   bool hasNonTrivialMoveAssignment() const {
     return (data().DeclaredNonTrivialSpecialMembers & SMF_MoveAssignment) ||
-           (needsImplicitMoveAssignment() &&
+           (isImplicitMoveAssignmentEligible() &&
             !(data().HasTrivialSpecialMembers & SMF_MoveAssignment));
   }
 
@@ -1374,8 +1425,12 @@ public:
   /// Determine whether this class has a non-trivial destructor
   /// (C++ [class.dtor]p3)
   bool hasNonTrivialDestructor() const {
-    return !(data().HasTrivialSpecialMembers & SMF_Destructor);
+      return (data().DeclaredNonTrivialSpecialMembers & SMF_Destructor) ||
+          (isImplicitDestructorEligible() &&
+              !(data().HasTrivialSpecialMembers & SMF_Destructor));
   }
+
+  bool isImplicitDestructorEligible() const;
 
   bool hasNonTrivialDestructorForCall() const {
     return !(data().HasTrivialSpecialMembersForCall & SMF_Destructor);
@@ -1428,8 +1483,8 @@ public:
   /// Determine whether this class is considered trivial.
   ///
   /// C++11 [class]p6:
-  ///    "A trivial class is a class that has a trivial default constructor and
-  ///    is trivially copyable."
+  ///    "A trivial class is a class that is trivially copyable and has one or more eligible default constructors ([class.default.ctor]), all of which are trivial."
+  ///
   bool isTrivial() const {
     return isTriviallyCopyable() && hasTrivialDefaultConstructor();
   }
@@ -1479,6 +1534,13 @@ public:
   /// Notify the class that an eligible SMF has been added.
   /// This updates triviality and destructor based properties of the class accordingly.
   void addedEligibleSpecialMemberFunction(const CXXMethodDecl *MD, unsigned SMKind);
+
+  void setNoEligibleSpecialMemberFunction(unsigned SMKind);
+
+  void updateDeletedImplicitTriviality();
+
+  static bool areDeletedSMFStillEligible(const ASTContext& Context);
+  bool areAllDeletedStillTriviallyCopyable() const;
 
   /// If this record is an instantiation of a member class,
   /// retrieves the member class from which it was instantiated.

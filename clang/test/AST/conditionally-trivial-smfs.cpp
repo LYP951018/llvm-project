@@ -47,7 +47,7 @@ template struct DefaultConstructorCheck<2>;
 // CHECK-NEXT:            "defaultedIsConstexpr": true,
 // CHECK-NEXT:            "exists": true,
 // CHECK-NEXT:            "isConstexpr": true,
-// CHECK-NEXT:            "trivial": true,
+// CHECK-NEXT:            "nonTrivial": true,
 // CHECK-NEXT:            "userProvided": true
 // CHECK-NEXT:          },
 
@@ -56,7 +56,6 @@ template struct DefaultConstructorCheck<2>;
 // CHECK-NEXT:          "isEmpty": true,
 // CHECK-NEXT:          "isLiteral": true,
 // CHECK-NEXT:          "isStandardLayout": true,
-// CHECK-NEXT:          "isTrivial": true,
 // CHECK-NEXT:          "isTriviallyCopyable": true,
 
 
@@ -120,14 +119,13 @@ template struct CopyConstructorCheck<2>;
 // CHECK:               "copyCtor": {
 // CHECK-NEXT:            "hasConstParam": true,
 // CHECK-NEXT:            "implicitHasConstParam": true,
-// CHECK-NEXT:            "trivial": true,
+// CHECK-NEXT:            "nonTrivial": true,
 // CHECK-NEXT:            "userDeclared": true
 // CHECK-NEXT:          },
 
 // CHECK:               "hasUserDeclaredConstructor": true,
 // CHECK-NEXT:          "isEmpty": true,
 // CHECK-NEXT:          "isStandardLayout": true,
-// CHECK-NEXT:          "isTriviallyCopyable": true,
 // CHECK-NEXT:          "moveAssign": {},
 
 template struct CopyConstructorCheck<3>;
@@ -184,11 +182,10 @@ template struct MoveConstructorCheck<2>;
 // CHECK:               "hasUserDeclaredConstructor": true,
 // CHECK-NEXT:          "isEmpty": true,
 // CHECK-NEXT:          "isStandardLayout": true,
-// CHECK-NEXT:          "isTriviallyCopyable": true,
 // CHECK-NEXT:          "moveAssign": {},
 // CHECK-NEXT:          "moveCtor": {
 // CHECK-NEXT:            "exists": true,
-// CHECK-NEXT:            "trivial": true,
+// CHECK-NEXT:            "nonTrivial": true,
 // CHECK-NEXT:            "userDeclared": true
 // CHECK-NEXT:          }
 
@@ -246,7 +243,7 @@ template struct CopyAssignmentCheck<2>;
 // CHECK-NEXT           "copyAssign": {
 // CHECK-NEXT             "hasConstParam": true,
 // CHECK-NEXT             "implicitHasConstParam": true,
-// CHECK-NEXT             "trivial": true,
+// CHECK-NEXT             "nonTrivial": true,
 // CHECK-NEXT             "userDeclared": true
 // CHECK-NEXT           },
 
@@ -255,8 +252,6 @@ template struct CopyAssignmentCheck<2>;
 // CHECK-NEXT           "isEmpty": true,
 // CHECK-NEXT           "isLiteral": true,
 // CHECK-NEXT           "isStandardLayout": true,
-// CHECK-NEXT           "isTrivial": true,
-// CHECK-NEXT           "isTriviallyCopyable": true,
 // CHECK-NEXT           "moveAssign": {},
 
 template struct CopyAssignmentCheck<3>;
@@ -319,11 +314,9 @@ template struct MoveAssignmentCheck<2>;
 // CHECK-NEXT:          "isLiteral": true,
 // CHECK-NEXT:          "isPOD": true,
 // CHECK-NEXT:          "isStandardLayout": true,
-// CHECK-NEXT:          "isTrivial": true,
-// CHECK-NEXT:          "isTriviallyCopyable": true,
 // CHECK-NEXT:          "moveAssign": {
 // CHECK-NEXT:            "exists": true,
-// CHECK-NEXT:            "trivial": true,
+// CHECK-NEXT:            "nonTrivial": true,
 // CHECK-NEXT:            "userDeclared": true
 // CHECK-NEXT:          },
 

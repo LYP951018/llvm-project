@@ -10572,13 +10572,6 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
   // FIXME: This means unqualified lookups for 'operator=' within a class
   // template don't work properly.
   if (!ClassDecl->isDependentType()) {
-    if (ClassDecl->needsImplicitDefaultConstructor()) {
-      ++getASTContext().NumImplicitDefaultConstructors;
-
-      if (ClassDecl->hasInheritedConstructor())
-        DeclareImplicitDefaultConstructor(ClassDecl);
-    }
-
     if (ClassDecl->needsImplicitCopyConstructor()) {
       ++getASTContext().NumImplicitCopyConstructors;
 
@@ -18135,6 +18128,18 @@ NamedDecl *Sema::ActOnFriendFunctionDecl(Scope *S, Declarator &D,
   return ND;
 }
 
+static void SetDeletedSpecialMemberAsInEligible(Sema&S, FunctionDecl* Fn) {
+  if (CXXRecordDecl::areDeletedSMFStillEligible(S.Context))
+    return;
+
+  const Sema::DefaultedFunctionKind Kind = S.getDefaultedFunctionKind(Fn);
+  if (!Kind.isSpecialMember()) return;
+  Sema::CXXSpecialMember CSM = Kind.asSpecialMember();
+  if (CSM != Sema::CXXSpecialMember::CXXDestructor) {
+    Fn->setIneligibleOrNotSelected(true);
+  }
+}
+
 void Sema::SetDeclDeleted(Decl *Dcl, SourceLocation DelLoc) {
   AdjustDeclIfTemplate(Dcl);
 
@@ -18185,6 +18190,8 @@ void Sema::SetDeclDeleted(Decl *Dcl, SourceLocation DelLoc) {
   //  A deleted function is implicitly inline.
   Fn->setImplicitlyInline();
   Fn->setDeletedAsWritten();
+
+  SetDeletedSpecialMemberAsInEligible(*this, Fn);
 }
 
 void Sema::SetDeclDefaulted(Decl *Dcl, SourceLocation DefaultLoc) {

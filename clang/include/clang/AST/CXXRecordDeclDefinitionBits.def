@@ -168,6 +168,8 @@ FIELD(DefaultedDestructorIsDeleted, 1, NO_MERGE)
 ///
 /// This excludes any user-declared but not user-provided special members
 /// which have been declared but not yet defined.
+/// since C++ 20, for non-destructor, this field means "has tivial eligible special members"
+/// for destructor, this field means has "has trvial non-deleted selected destructor"
 FIELD(HasTrivialSpecialMembers, 6, MERGE_OR)
 
 /// These bits keep track of the triviality of special functions for the
@@ -248,5 +250,8 @@ FIELD(HasDeclaredCopyAssignmentWithConstParam, 1, MERGE_OR)
 /// Whether the destructor is no-return. Either explicitly, or if any
 /// base classes or fields have a no-return destructor
 FIELD(IsAnyDestructorNoReturn, 1, NO_MERGE)
+
+FIELD(DefaultedDefaultConstructorIsDeleted, 1, NO_MERGE)
+FIELD(NeedOverloadResolutionForDefaultConstructor, 1, NO_MERGE)
 
 #undef FIELD
